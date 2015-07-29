@@ -26,4 +26,6 @@
 
 #include "boost/filesystem.hpp"
 
+#include "download.hpp"
+
 #endif

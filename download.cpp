@@ -1,4 +1,5 @@
 #include "download.hpp"
+#include "foolish.cpp"
 
 using namespace libtorrent;
 
@@ -16,6 +17,9 @@ DownloadSession::DownloadSession(){
 	s->add_extension(&libtorrent::create_ut_metadata_plugin);
 	s->add_extension(&libtorrent::create_ut_pex_plugin);
 	s->add_extension(&libtorrent::create_smart_ban_plugin);
+
+	boost::shared_ptr<plugin> foolish(new foolish_plugin());
+	s->add_extension(foolish);
 }
 DownloadSession::~DownloadSession(){
 	stopSession();
@@ -27,7 +31,7 @@ bool DownloadSession::setSessionDir(std::string temp, std::string down){
 
 	std::vector<char> in;
 	error_code ec;
-	//ƒø¬º¥¶¿Ì
+	//ÁõÆÂΩïÂ§ÑÁêÜ
 	if (!is_directory(tempDir, ec)){
 		create_directory(tempDir, ec);
 		if (ec)
@@ -47,7 +51,7 @@ bool DownloadSession::setSessionDir(std::string temp, std::string down){
 			LOG_ERR("failed to create resumeDir file directory: %s\n", ec.message().c_str());
 	}
 
-	//º”‘ÿ◊¥Ã¨Œƒº˛
+	//Âä†ËΩΩÁä∂ÊÄÅÊñá‰ª∂
 	loadState();
 	return true;
 }
@@ -88,8 +92,8 @@ bool DownloadSession::startSession(int ListenPort, int UploadLimit, int Download
 			settings.upload_rate_limit = 0;
 		}
 		s->set_settings(settings);
-		//ÀŸ∂»…Ë÷√
-		
+		//ÈÄüÂ∫¶ËÆæÁΩÆ
+
 		s->start_lsd();
 		s->start_upnp();
 		s->start_natpmp();
@@ -108,7 +112,7 @@ bool DownloadSession::startSession(int ListenPort, int UploadLimit, int Download
 	}
 	catch (std::exception& e) {
 		LOG_ERR("failed to start session");
-		
+
 	}
 	return result;
 }
@@ -122,7 +126,7 @@ bool DownloadSession::stopSession(){
 		for (std::vector<torrent_handle>::iterator i = temp.begin(); i != temp.end(); ++i)
 		{
 			torrent_handle& th = *i;
-			torrent_status& st = th.status(torrent_handle::query_accurate_download_counters);
+			torrent_status st = th.status(torrent_handle::query_accurate_download_counters);
 
 			if (!th.is_valid())
 			{
@@ -161,26 +165,26 @@ bool DownloadSession::stopSession(){
 				torrent_paused_alert const* tp = alert_cast<torrent_paused_alert>(*i);
 				if (tp)
 				{
-					
+
 					continue;
 				}
 
 				if (alert_cast<save_resume_data_failed_alert>(*i))
 				{
-				
+
 					--num_outstanding_resume_data;
-					
+
 					continue;
 				}
 
 				save_resume_data_alert const* rd = alert_cast<save_resume_data_alert>(*i);
 				if (!rd) continue;
 				--num_outstanding_resume_data;
-			
+
 				if (!rd->resume_data) continue;
 
 				torrent_handle h = rd->handle;
-				torrent_status st = h.status(torrent_handle::query_save_path);
+				//torrent_status st2 = h.status(torrent_handle::query_save_path);
 				std::vector<char> out;
 				bencode(std::back_inserter(out), *rd->resume_data);
 				std::string filename = libtorrent::combine_path(tempDir, libtorrent::combine_path("resume", libtorrent::to_hex(h.info_hash().to_string()) + ".resume"));
@@ -191,7 +195,7 @@ bool DownloadSession::stopSession(){
 		saveState();
 		s->abort();
 		result = true;
-		
+
 	}
 	catch (std::exception& e) {
 		LOG_ERR("failed to start session");
@@ -213,13 +217,13 @@ std::string DownloadSession::getSessionStatusJson(){
 		, s_s.total_upload
 		, s_s.total_upload
 		, s_s.num_peers
-	);
+		);
 	out += str;
 	return out;
 }
 
 std::string DownloadSession::getSessionDetailJson(){
-	
+
 	s->post_torrent_updates();
 	std::vector<libtorrent::torrent_handle> torrents = s->get_torrents();
 	std::vector<libtorrent::torrent_handle>::const_iterator it = torrents.begin();
@@ -244,7 +248,7 @@ std::string DownloadSession::getSessionDetailJson(){
 		/*
 		for (int i = 0; i < ti->num_files(); ++i)
 		{
-			file_size += ti->files().file_size(i);
+		file_size += ti->files().file_size(i);
 		}*/
 		snprintf(str, sizeof(str),
 			"{"
@@ -280,7 +284,7 @@ std::string DownloadSession::getSessionDetailJson(){
 	return out;
 }
 bool  DownloadSession::addTorrentFromUrl(std::string &url){
-	bool result = "";
+	bool result = false;
 	std::string TorrentFile = "";
 
 	std::vector<add_torrent_params> magnet_links;
@@ -291,6 +295,13 @@ bool  DownloadSession::addTorrentFromUrl(std::string &url){
 	bool disable_storage = false;
 
 	try{
+		//
+		int taskStatus = getTaskStatus(url);
+
+		if (taskStatus >0){ //Â¶ÇÊûúÂ≠òÂú®
+			//reStart(url);
+			return true;
+		}
 
 		boost::intrusive_ptr<libtorrent::torrent_info> t;
 		libtorrent::error_code ec;
@@ -309,9 +320,9 @@ bool  DownloadSession::addTorrentFromUrl(std::string &url){
 			p.save_path = downloadDir;
 			libtorrent::storage_mode_t storageMode = libtorrent::storage_mode_sparse;
 			switch (StorageMode){
-				case 0: storageMode = libtorrent::storage_mode_allocate; break;
-				case 1: storageMode = libtorrent::storage_mode_sparse; break;
-				case 2: storageMode = libtorrent::storage_mode_compact; break;
+			case 0: storageMode = libtorrent::storage_mode_allocate; break;
+			case 1: storageMode = libtorrent::storage_mode_sparse; break;
+			case 2: storageMode = libtorrent::storage_mode_compact; break;
 			}
 			p.storage_mode = storageMode;
 			p.url = url;
@@ -326,10 +337,9 @@ bool  DownloadSession::addTorrentFromUrl(std::string &url){
 
 				if (ec) {
 					std::string errorMessage = ec.message();
-					LOG_ERR("Couldn't parse this Magnet URI: %s %s\n", url, errorMessage.c_str());
+					LOG_ERR("Couldn't parse this Magnet URI: %s %s\n", urlc, errorMessage.c_str());
 					return "";
 				}
-				
 				std::string filename = libtorrent::combine_path(tempDir, libtorrent::combine_path("resume", libtorrent::to_hex(tmp.info_hash.to_string()) + ".resume"));
 				LOG_INFO("load resume_data:%s", filename.c_str());
 				loadFile(filename.c_str(), p.resume_data, ec);
@@ -338,16 +348,18 @@ bool  DownloadSession::addTorrentFromUrl(std::string &url){
 					LOG_ERR("fail to load resume_data%s\n", ec.message().c_str());
 				}
 
-					result = true;
+				result = true;
 			}
-	
+
 			LOG_INFO("adding URL: %s\n", urlc);
 
 			p.userdata = (void*)strdup(urlc);
 			s->async_add_torrent(p);
-			setTask(url, add_to_queued, th);
+
+			//setTaskFromHandle(url, add_to_queued, th);
 		}
-	}catch (...) {
+	}
+	catch (...) {
 		LOG_ERR("Exception: failed to add torrent");
 
 	}
@@ -355,8 +367,15 @@ bool  DownloadSession::addTorrentFromUrl(std::string &url){
 }
 bool DownloadSession::addTorrentFromFile(std::string &torrentFile){
 	bool result = false;
-	
+
 	try{
+
+		int taskStatus = getTaskStatus(torrentFile);
+
+		if (taskStatus >0){ //Â¶ÇÊûúÂ≠òÂú®
+			//reStart(url);
+			return true;
+		}
 
 		boost::intrusive_ptr<libtorrent::torrent_info> t;
 		libtorrent::error_code ec;
@@ -388,7 +407,7 @@ bool DownloadSession::addTorrentFromFile(std::string &torrentFile){
 			if (ec){
 				LOG_ERR("fail to load resume_data%s\n", ec.message().c_str());
 			}
-		
+
 			torrentParams.ti = t;
 			torrentParams.save_path = downloadDir;
 			torrentParams.duplicate_is_error = false;
@@ -402,11 +421,18 @@ bool DownloadSession::addTorrentFromFile(std::string &torrentFile){
 			torrentParams.storage_mode = storageMode;
 			torrentParams.userdata = (void*)strdup(torrentFile.c_str());
 			s->async_add_torrent(torrentParams);
-
-			setTask(torrentFile, add_to_queued, libtorrent::to_hex(t->info_hash().to_string()));
+			//copyfile
+			std::vector<char> in;
+			error_code ec;
+			if (loadFile(torrentFile, in, ec) == 0)
+			{
+				std::string bakfile = libtorrent::combine_path(tempDir, libtorrent::combine_path("torrent", libtorrent::to_hex(t->info_hash().to_string()) + ".torrent"));
+				saveFile(bakfile, in);
+			}
+			//setTaskFromHash(torrentFile, add_to_queued, libtorrent::to_hex(t->info_hash().to_string()));
 			result = true;
 		}
-		
+
 	}
 	catch (...) {
 		LOG_ERR("Exception: failed to add torrent");
@@ -417,7 +443,7 @@ bool DownloadSession::addTorrentFromFile(std::string &torrentFile){
 void DownloadSession::readAlerts(){
 
 	typedef std::vector<alert*> alerts_t;
-	
+
 	//m_alertDispatcher->getPendingAlertsNoWait(alerts);
 	std::deque<alert*> alerts;
 	s->pop_alerts(&alerts);
@@ -468,8 +494,8 @@ void DownloadSession::handleAlert(libtorrent::alert* a){
 			break;
 		default:
 			std::string event_string;
-			//print_alert(a, event_string);
-		
+			print_alert(a, event_string);
+
 		}
 
 	}
@@ -500,7 +526,7 @@ void DownloadSession::print_alert(libtorrent::alert const* a, std::string& str)
 	LOG_INFO(str.c_str());
 
 	//if (g_log_file)
-		//fprintf(g_log_file, "[%s] %s\n", timestamp(), a->message().c_str());
+	//fprintf(g_log_file, "[%s] %s\n", timestamp(), a->message().c_str());
 }
 DownloadSession* DownloadSession::instance(){
 	if (!m_instance) {
@@ -620,9 +646,11 @@ void DownloadSession::handleAddTorrentAlert(libtorrent::add_torrent_alert* p){
 	}
 	else{
 		torrent_handle h = p->handle;
-		
+
 		if (!filename.empty()){
-			setTask(filename, add_to_queued, h);
+			//Êñ∞Â¢û
+			addTask(filename, add_to_queued, h);
+			//setTaskFromHandle(filename, add_to_queued, h);
 		}
 	}
 }
@@ -636,15 +664,20 @@ void DownloadSession::handleMetadataReceivedAlert(libtorrent::metadata_received_
 		std::vector<char> buffer;
 		bencode(std::back_inserter(buffer), te);
 		std::string filename = libtorrent::combine_path(tempDir, libtorrent::combine_path("torrent", libtorrent::to_hex(h.info_hash().to_string()) + ".torrent"));
-		
+
 		saveFile(filename, buffer);
-	
+
 		TaskInfo* taskinfo = getTaskByHandle(h);
 		std::string taskId = taskinfo->taskId;
+		LOG_INFO("handleMetadataReceivedAlert:%s", taskId.c_str());
+		LOG_INFO("infohash:%s", taskId.c_str());
+
 		if (taskId != ""){
-			setTask(taskId, add_to_queued, h);
+			setTask(taskId, add_to_queued, libtorrent::to_hex(h.info_hash().to_string()));
 		}
+
 	}
+	
 }
 
 void DownloadSession::handleSaveResumeDataAlert(libtorrent::save_resume_data_alert* p){
@@ -661,11 +694,6 @@ void DownloadSession::handleSaveResumeDataAlert(libtorrent::save_resume_data_ale
 void DownloadSession::handleTorrentPausedAlert(libtorrent::torrent_paused_alert* p){
 	torrent_handle h = p->handle;
 	if (h.is_valid()) {
-		TaskInfo* taskinfo = getTaskByHandle(h);
-		std::string taskId = taskinfo->taskId;
-		if (taskId != ""){
-			setTask(taskId, pause, h);
-		}
 		h.save_resume_data();
 	}
 }
@@ -675,8 +703,9 @@ void DownloadSession::handleTorrentFinishedAlert(libtorrent::torrent_finished_al
 		h.save_resume_data();
 		TaskInfo* taskinfo = getTaskByHandle(h);
 		std::string taskId = taskinfo->taskId;
+		LOG_INFO("download finish: %s", taskId.c_str());
 		if (taskId != ""){
-			setTask(taskId, finish_all, h);
+			setTask(taskId, finish_all, std::string(""));
 		}
 	}
 }
@@ -685,66 +714,36 @@ void DownloadSession::handleStateUpdateAlert(libtorrent::state_update_alert *p) 
 	std::vector<torrent_status> torrent_status = p->status;
 	/*
 	for (int i = 0; i < torrent_status.size(); i++) {
-		TaskInfo* taskinfo = getTaskByHandle(torrent_status[i].handle);
-		std::string taskId = taskinfo->taskId;
-		if (torrent_status[i].handle.is_valid()){
-			tasks.insert(std::pair<std::string, TaskInfo*>(taskId, taskinfo));
-		}
+	TaskInfo* taskinfo = getTaskByHandle(torrent_status[i].handle);
+	std::string taskId = taskinfo->taskId;
+	if (torrent_status[i].handle.is_valid()){
+	tasks.insert(std::pair<std::string, TaskInfo*>(taskId, taskinfo));
+	}
 	}*/
 }
+void DownloadSession::addTask(std::string& taskId, int status, libtorrent::torrent_handle& handle){
 
-void DownloadSession::setTask(std::string& taskId, int status, libtorrent::torrent_handle& handle){
-	std::map<std::string, TaskInfo*> ::iterator iter;
-	TaskInfo* taskinfo;
-	bool flag = true;
-	for (iter = tasks.begin(); iter != tasks.end(); ++iter){
-		if (iter->second->handle == handle || iter->second->taskId == taskId){
-			taskinfo = iter->second;
-			taskinfo->status = status;
-			taskinfo->handle = handle;
-			if (handle.is_valid()){
-				taskinfo->hash = libtorrent::to_hex(handle.info_hash().to_string());
-				flag = false;
-				tasks.insert(std::pair<std::string, TaskInfo*>(iter->first, taskinfo));
-				break;
-			}
-		}
-	}
-	if (flag){
 		TaskInfo* taskInfo = new TaskInfo();
 		taskInfo->taskId = taskId;
 		taskInfo->status = status;
 		taskInfo->handle = handle;
-		taskInfo->hash = libtorrent::to_hex(handle.info_hash().to_string());
+		if (handle.is_valid()){
+			taskInfo->hash = libtorrent::to_hex(handle.info_hash().to_string());
+		}
 		tasks.insert(std::pair<std::string, TaskInfo*>(taskId, taskInfo));
-	}
-	saveTasks();
-
+		saveTasks();
 }
 
 void DownloadSession::setTask(std::string& taskId, int status, std::string& hash){
 	std::map<std::string, TaskInfo*> ::iterator iter;
-	TaskInfo* taskinfo;
-	bool flag = true;
-	for (iter = tasks.begin(); iter != tasks.end(); ++iter){
-		if (iter->second->hash == hash || iter->second->taskId == taskId){
-			taskinfo = iter->second;
-			taskinfo->status = status;
-			taskinfo->hash = hash;
-			flag = false;
-			tasks.insert(std::pair<std::string, TaskInfo*>(iter->first, taskinfo));
-			break;
+	iter = tasks.find(taskId);
+	if (iter != tasks.end()){
+		if (hash != ""){
+			iter->second->hash = hash;
 		}
+		iter->second->status = status;
+		saveTasks();
 	}
-	if (flag){
-		TaskInfo* taskInfo = new TaskInfo();
-		taskInfo->taskId = taskId;
-		taskInfo->status = status;
-		taskInfo->hash = hash;
-		tasks.insert(std::pair<std::string, TaskInfo*>(taskId, taskInfo));
-	}
-	saveTasks();
-
 }
 
 torrent_handle DownloadSession::getTorrentHandleFromHash(std::string &hash) const{
@@ -754,7 +753,7 @@ torrent_handle DownloadSession::getTorrentHandleFromHash(std::string &hash) cons
 }
 
 torrent_handle DownloadSession::getTorrentHandleFromTaskId(std::string &taskId){
-	
+
 	libtorrent::torrent_handle handle;
 	std::map<std::string, TaskInfo*> ::iterator iter;
 	iter = tasks.find(taskId);
@@ -769,7 +768,7 @@ torrent_handle DownloadSession::getTorrentHandleFromTaskId(std::string &taskId){
 
 }
 int DownloadSession::getTaskStatus(std::string &taskId){
-	int result = 0;
+	int result = -1;
 	s->post_torrent_updates();
 	std::map<std::string, TaskInfo*> ::iterator iter;
 	iter = tasks.find(taskId);
@@ -795,7 +794,7 @@ void DownloadSession::saveTasks(){
 		task = iter->second;
 		fileInfo["taskId"] = task->taskId;
 		fileInfo["status"] = task->status;
-		fileInfo["hash"]   = task->hash;
+		fileInfo["hash"] = task->hash;
 		ret[iter->first] = fileInfo;
 	}
 	std::vector<char> out;
@@ -820,11 +819,11 @@ void DownloadSession::loadTasks(){
 				TaskInfo* taskInfo = new TaskInfo();
 				taskInfo->taskId = elem.second->dict_find_string_value("taskId");
 				taskInfo->status = elem.second->dict_find_int_value("status");
-				taskInfo->hash   = elem.second->dict_find_string_value("hash");
+				taskInfo->hash = elem.second->dict_find_string_value("hash");
 				libtorrent::torrent_handle handle;
-				if (taskInfo->hash != "00000000000000000000000000000000000000000000"){
+				if (taskInfo->hash != "00000000000000000000000000000000000000000000" && taskInfo->hash!=""){
 					if (taskInfo->status == add_to_queued || taskInfo->status == download_suspend){
-						
+
 						std::string torrentFile = libtorrent::combine_path(tempDir, libtorrent::combine_path("torrent", taskInfo->hash + ".torrent"));
 						if (libtorrent::exists(torrentFile)){
 							handle = addTorrentFromTask(torrentFile);
@@ -837,14 +836,14 @@ void DownloadSession::loadTasks(){
 					else{
 						tasks.insert(std::pair<std::string, TaskInfo*>(taskInfo->taskId, taskInfo));
 					}
-				
+
 				}
 
 				//}
 			}
-			
+
 		}
-			
+
 		s->load_state(e);
 	}
 
@@ -867,7 +866,7 @@ libtorrent::torrent_handle DownloadSession::addTorrentFromTask(std::string torre
 		boost::intrusive_ptr<libtorrent::torrent_info> t;
 		libtorrent::error_code ec;
 		add_torrent_params p;
-	
+
 		t = new libtorrent::torrent_info(torrentFile, ec);
 		if (ec){
 			std::string errorMessage = ec.message();
@@ -876,7 +875,7 @@ libtorrent::torrent_handle DownloadSession::addTorrentFromTask(std::string torre
 		th = s->find_torrent(t->info_hash());
 		if (th.is_valid()) {
 			LOG_INFO("Torrent is already in download list");
-		
+
 		}
 		else{
 			LOG_INFO("%s\n", t->name().c_str());
@@ -905,7 +904,7 @@ libtorrent::torrent_handle DownloadSession::addTorrentFromTask(std::string torre
 			case 2: storageMode = libtorrent::storage_mode_compact; break;
 			}
 			torrentParams.storage_mode = storageMode;
-			torrentParams.userdata = (void*)strdup(torrentFile.c_str());
+			//torrentParams.userdata = (void*)strdup(torrentFile.c_str());
 			th = s->add_torrent(torrentParams);
 		}
 	}
@@ -915,7 +914,7 @@ libtorrent::torrent_handle DownloadSession::addTorrentFromTask(std::string torre
 	return th;
 }
 
-//ªÒ»°Œƒº˛–≈œ¢
+//Ëé∑ÂèñÊñá‰ª∂‰ø°ÊÅØ
 std::string DownloadSession::getTorrentFiles(std::string& taskId){
 	std::string result = "";
 	try {
@@ -1010,7 +1009,7 @@ std::map<std::string, int> DownloadSession::getFirstLastPiece(std::string& taskI
 			libtorrent::torrent_info const& info = pTorrent.get_torrent_info();
 			//piece_num
 			int pices_num = info.num_pieces();
-			//piece¥Û–°
+			//pieceÂ§ßÂ∞è
 			int piece_size = info.piece_size(0);
 
 			int first = int(info.file_at(fileIndex).offset / piece_size);

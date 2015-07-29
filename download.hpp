@@ -1,17 +1,13 @@
 #include "define.h"
+#ifndef __define_download__
+#define __define_download__
 
 using namespace libtorrent;
 
-enum task_state_t
-{
-	add_to_queued = 11,          //11, ĞÂ¼ÓÈë¶ÓÁĞ
-	finish_all = 12,              //12, Íê³É
-	pause = 13,              //14, ÔİÍ£
-	download_suspend = 14          //14£¬ÖĞ¶Ï
-};
+
 class TaskInfo{
 public:
-	std::string taskId;   //ÈÎÎñ±êÊ¶
+	std::string taskId;   //ä»»åŠ¡æ ‡è¯†
 	int status;             //0-7 
 	std::string hash;      //infohash
 	libtorrent::torrent_handle handle; //handle
@@ -20,107 +16,118 @@ public:
 
 class DownloadSession{
 
-	private:
+private:
 	explicit DownloadSession();
 	static DownloadSession* m_instance;
 	static volatile bool gSessionState;
-	std::string tempDir;//ÁÙÊ±Ä¿Â¼
+	std::string tempDir;//ä¸´æ—¶ç›®å½•
 	std::string downloadDir;
 	libtorrent::session *s;
-	std::string resumeDir;//¿ìËÙÆô¶¯Ä¿Â¼
-	std::string torrentDir;//ÖÖ×ÓÎÄ¼şÄ¿Â¼
+	std::string resumeDir;//å¿«é€Ÿå¯åŠ¨ç›®å½•
+	std::string torrentDir;//ç§å­æ–‡ä»¶ç›®å½•
+
+	enum task_state_t
+	{
+		add_to_queued = 11,          //11, æ–°åŠ å…¥é˜Ÿåˆ—
+		finish_all = 12,              //12, å®Œæˆ
+		pause = 13,              //14, æš‚åœ
+		download_suspend = 14          //14ï¼Œä¸­æ–­
+	};
 
 	std::map<std::string, TaskInfo*> tasks;
 	int StorageMode = 0;
 
-	public:
-		static DownloadSession* instance();
-		static void drop();
-		~DownloadSession();
-		torrent_handle getTorrentHandleFromHash(std::string &hash) const; //È¡µÃhandle
-		torrent_handle getTorrentHandleFromTaskId(std::string &taskId); //È¡µÃhandle
-		std::vector<torrent_handle> getTorrents() const;
-		bool isFilePreviewPossible(std::string &hash) const;     //ÎÄ¼şÊÇ·ñ¿ÉÔ¤ÀÀ
-		//session¹ÜÀí
-		bool setSessionDir(std::string tempDir, std::string downDir);
-		bool startSession(int ListenPort, int UploadLimit, int DownloadLimit);
-		
-		bool stopSession();
-		inline libtorrent::session* getSession() const { return s; }
-		
-		std::string getSessionStatusJson();
+public:
+	static DownloadSession* instance();
+	static void drop();
+	~DownloadSession();
+	torrent_handle getTorrentHandleFromHash(std::string &hash) const; //å–å¾—handle
+	torrent_handle getTorrentHandleFromTaskId(std::string &taskId); //å–å¾—handle
+	std::vector<torrent_handle> getTorrents() const;
+	bool isFilePreviewPossible(std::string &hash) const;     //æ–‡ä»¶æ˜¯å¦å¯é¢„è§ˆ
+	//sessionç®¡ç†
+	bool setSessionDir(std::string tempDir, std::string downDir);
+	bool startSession(int ListenPort, int UploadLimit, int DownloadLimit);
 
-		std::string getSessionDetailJson();
+	bool stopSession();
+	inline libtorrent::session* getSession() const { return s; }
 
+	std::string getSessionStatusJson();
 
-
-		//ÈÎÎñ¹ÜÀí
-		bool addTorrentFromUrl(std::string &url);
-
-		bool addTorrentFromFile(std::string &torrentFile);
+	std::string getSessionDetailJson();
 
 
-		//»ñÈ¡ÎÄ¼şĞÅÏ¢
-		std::string getTorrentFiles(std::string& taskId);
+	//ä»»åŠ¡ç®¡ç†
+	bool addTorrentFromUrl(std::string &url);
 
-		//»ñÈ¡È¨ÖØ
-		std::vector<int> getPiecePriority(std::string& taskId);
-
-		//»ñÈ¡pieceµÄÎÄ¼ş´óĞ¡
-		int getPieceSize(std::string& taskId, int PieceIndex);
-		//»ñÈ¡µÚÒ»¸öºÍ×îºóÒ»¸öpiceceµÄindex
-		std::map<std::string, int> getFirstLastPiece(std::string& taskId, int fileIndex);
-		//ÉèÖÃÈ¨ÖØ
-		bool setPiecePriorities(std::string& taskId, std::vector<int> priorities);
+	bool addTorrentFromFile(std::string &torrentFile);
 
 
+	//è·å–æ–‡ä»¶ä¿¡æ¯
+	std::string getTorrentFiles(std::string& taskId);
 
-		//void recheckTorrent(std::string &taskId); //ÖØĞÂÆô¶¯²¢¼ì²â
-		
-		void deleteTorrent(std::string &taskId, bool delete_local_files = false);
-		
-		void pauseAllTorrents();
-		void pauseTorrent(std::string &hash);
-		void suspendOtherTorrents(std::string &hash);
-		void resumeTorrent(std::string &hash, const bool force = false);
-		void resumeSuspendTorrents(const bool force = false);
+	//è·å–æƒé‡
+	std::vector<int> getPiecePriority(std::string& taskId);
 
-		void handleAlert(libtorrent::alert* a);
-		
-		void readAlerts();
-		void print_alert(libtorrent::alert const* a, std::string& str);
+	//è·å–pieceçš„æ–‡ä»¶å¤§å°
+	int getPieceSize(std::string& taskId, int PieceIndex);
+	//è·å–ç¬¬ä¸€ä¸ªå’Œæœ€åä¸€ä¸ªpiceceçš„index
+	std::map<std::string, int> getFirstLastPiece(std::string& taskId, int fileIndex);
+	//è®¾ç½®æƒé‡
+	bool setPiecePriorities(std::string& taskId, std::vector<int> priorities);
 
-		//task
-		int getTaskStatus(std::string &taskId);
-		std::string getTasksJson(std::string status);
-		libtorrent::torrent_handle get_torrent_handle_from_hash(std::string& hash); 
 
-	private:
-	
-		bool loadFastResumeData(std::string &hash, std::vector<char> &buf);
-		
-		void loadTorrentTempData(torrent_handle &h, std::string savePath, bool magnet);
-		
-		int loadFile(std::string const& filename, std::vector<char>& v, libtorrent::error_code& ec, int limit = 8000000);
-		int saveFile(std::string const& filename, std::vector<char>& v);
-		void saveState();
-		void loadState();
-		void handleAddTorrentAlert(libtorrent::add_torrent_alert* p);
 
-		void handleTorrentFinishedAlert(libtorrent::torrent_finished_alert* p);
-		void handleMetadataReceivedAlert(libtorrent::metadata_received_alert* p);
-		void handleSaveResumeDataAlert(libtorrent::save_resume_data_alert* p);
-		void handleTorrentPausedAlert(libtorrent::torrent_paused_alert* p);
-		void handleStateUpdateAlert(libtorrent::state_update_alert *p);
+	//void recheckTorrent(std::string &taskId); //é‡æ–°å¯åŠ¨å¹¶æ£€æµ‹
 
-		//task
-		void setTask(std::string& taskId, int status, libtorrent::torrent_handle& handle);
-		void setTask(std::string& taskId, int status, std::string& hash);
-		void saveTasks(); //save to file
-		TaskInfo* getTaskByHandle(libtorrent::torrent_handle& handle);
-		libtorrent::torrent_handle addTorrentFromTask(std::string torrentFile);
+	void deleteTorrent(std::string &taskId, bool delete_local_files = false);
 
-		void loadTasks(); //load from file
-		//void removeTask(std::string& taskId);
+	void pauseAllTorrents();
+	void pauseTorrent(std::string &hash);
+	void suspendOtherTorrents(std::string &hash);
+	void resumeTorrent(std::string &hash, const bool force = false);
+	void resumeSuspendTorrents(const bool force = false);
+
+	void handleAlert(libtorrent::alert* a);
+
+	void readAlerts();
+	void print_alert(libtorrent::alert const* a, std::string& str);
+
+	//task
+	int getTaskStatus(std::string &taskId);
+	std::string getTasksJson(std::string status);
+	libtorrent::torrent_handle get_torrent_handle_from_hash(std::string& hash);
+
+private:
+
+	bool loadFastResumeData(std::string &hash, std::vector<char> &buf);
+
+	void loadTorrentTempData(torrent_handle &h, std::string savePath, bool magnet);
+
+	int loadFile(std::string const& filename, std::vector<char>& v, libtorrent::error_code& ec, int limit = 8000000);
+	int saveFile(std::string const& filename, std::vector<char>& v);
+	void saveState();
+	void loadState();
+	void handleAddTorrentAlert(libtorrent::add_torrent_alert* p);
+
+	void handleTorrentFinishedAlert(libtorrent::torrent_finished_alert* p);
+	void handleMetadataReceivedAlert(libtorrent::metadata_received_alert* p);
+	void handleSaveResumeDataAlert(libtorrent::save_resume_data_alert* p);
+	void handleTorrentPausedAlert(libtorrent::torrent_paused_alert* p);
+	void handleStateUpdateAlert(libtorrent::state_update_alert *p);
+
+	//task
+	void addTask(std::string& taskId, int status, libtorrent::torrent_handle& handle);
+	//void setTaskFromHandle(std::string& taskId, int status, libtorrent::torrent_handle& handle);
+	void setTask(std::string& taskId, int status, std::string& hash);
+	//void delTask(std::string& taskId);
+
+	void saveTasks(); //save to file
+	TaskInfo* getTaskByHandle(libtorrent::torrent_handle& handle);
+	libtorrent::torrent_handle addTorrentFromTask(std::string torrentFile);
+
+	void loadTasks(); //load from file
+	//void removeTask(std::string& taskId);
 
 };
+#endif

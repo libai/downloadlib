@@ -25,7 +25,7 @@ int main(int argc, char* argv[])
 	bool result;
 	std::string info = "";
 	std::string files = "";
-	//result = downloadSession->addTorrentFromFile(torrentPath);
+	result = downloadSession->addTorrentFromFile(torrentPath);
 
 	std::string httpUrl = "https://yts.to/torrent/download/160D1170AD41E98216D055E746579B79A5AF3A33.torrent";
 	int status = 0;
@@ -33,9 +33,9 @@ int main(int argc, char* argv[])
 
 	result = downloadSession->addTorrentFromUrl(httpUrl);
 
-	//std::string magnet = "magnet:?xt=urn:btih:DE91C4A7F183C4164BCD4549C933FB2A5F720E7A&dn=%E5%93%A5%E6%96%AF%E6%8B%89.Godzilla.2014.TC720P.X264.AAC.english.CHS.Mp4Ba";
+	std::string magnet = "magnet:?xt=urn:btih:DE91C4A7F183C4164BCD4549C933FB2A5F720E7A&dn=%E5%93%A5%E6%96%AF%E6%8B%89.Godzilla.2014.TC720P.X264.AAC.english.CHS.Mp4Ba";
 
-	//result = downloadSession->addTorrentFromUrl(magnet);
+	result = downloadSession->addTorrentFromUrl(magnet);
 
 	int j = 0;
 	//等待任务准备好
@@ -97,7 +97,7 @@ int main(int argc, char* argv[])
 
 		status = downloadSession->getTaskStatus(httpUrl);
 		LOG_INFO("status:%d", status);
-		downloadSession->readAlerts();
+		//downloadSession->readAlerts();
 		Sleep(10000);
 		i++;
 	}
