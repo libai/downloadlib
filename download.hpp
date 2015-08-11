@@ -58,9 +58,9 @@ public:
 
 
 	//任务管理
-	bool addTorrentFromUrl(std::string &url);
+	void addTorrentFromUrl(std::string &url);
 
-	bool addTorrentFromFile(std::string &torrentFile);
+	void addTorrentFromFile(std::string &torrentFile);
 
 
 	//获取文件信息
@@ -75,8 +75,6 @@ public:
 	std::map<std::string, int> getFirstLastPiece(std::string& taskId, int fileIndex);
 	//设置权重
 	bool setPiecePriorities(std::string& taskId, std::vector<int> priorities);
-
-
 
 	//void recheckTorrent(std::string &taskId); //重新启动并检测
 
@@ -101,7 +99,6 @@ public:
 private:
 
 	bool loadFastResumeData(std::string &hash, std::vector<char> &buf);
-
 	void loadTorrentTempData(torrent_handle &h, std::string savePath, bool magnet);
 
 	int loadFile(std::string const& filename, std::vector<char>& v, libtorrent::error_code& ec, int limit = 8000000);
@@ -117,11 +114,12 @@ private:
 	void handleStateUpdateAlert(libtorrent::state_update_alert *p);
 
 	//task
-	void addTask(std::string& taskId, int status, libtorrent::torrent_handle& handle);
+	void DownloadSession::addTask(std::string& taskId, int status, libtorrent::torrent_handle& handle);
 	//void setTaskFromHandle(std::string& taskId, int status, libtorrent::torrent_handle& handle);
 	void setTask(std::string& taskId, int status, std::string& hash);
-	//void delTask(std::string& taskId);
 
+	void afterAddTorrent(std::string& taskId, libtorrent::torrent_handle& handle);
+	void initTorrent(libtorrent::torrent_handle& handle);
 	void saveTasks(); //save to file
 	TaskInfo* getTaskByHandle(libtorrent::torrent_handle& handle);
 	libtorrent::torrent_handle addTorrentFromTask(std::string torrentFile);

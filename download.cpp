@@ -283,8 +283,8 @@ std::string DownloadSession::getSessionDetailJson(){
 	out = "[" + out + "]";
 	return out;
 }
-bool  DownloadSession::addTorrentFromUrl(std::string &url){
-	bool result = false;
+void DownloadSession::addTorrentFromUrl(std::string &url){
+	libtorrent::torrent_handle th;
 	std::string TorrentFile = "";
 
 	std::vector<add_torrent_params> magnet_links;
@@ -295,17 +295,10 @@ bool  DownloadSession::addTorrentFromUrl(std::string &url){
 	bool disable_storage = false;
 
 	try{
-		//
-		int taskStatus = getTaskStatus(url);
-
-		if (taskStatus >0){ //如果存在
-			//reStart(url);
-			return true;
-		}
 
 		boost::intrusive_ptr<libtorrent::torrent_info> t;
 		libtorrent::error_code ec;
-		libtorrent::torrent_handle th;
+	
 		add_torrent_params p;
 		const char* urlc = url.c_str();
 
@@ -320,9 +313,9 @@ bool  DownloadSession::addTorrentFromUrl(std::string &url){
 			p.save_path = downloadDir;
 			libtorrent::storage_mode_t storageMode = libtorrent::storage_mode_sparse;
 			switch (StorageMode){
-			case 0: storageMode = libtorrent::storage_mode_allocate; break;
-			case 1: storageMode = libtorrent::storage_mode_sparse; break;
-			case 2: storageMode = libtorrent::storage_mode_compact; break;
+				case 0: storageMode = libtorrent::storage_mode_allocate; break;
+				case 1: storageMode = libtorrent::storage_mode_sparse; break;
+				case 2: storageMode = libtorrent::storage_mode_compact; break;
 			}
 			p.storage_mode = storageMode;
 			p.url = url;
@@ -338,7 +331,7 @@ bool  DownloadSession::addTorrentFromUrl(std::string &url){
 				if (ec) {
 					std::string errorMessage = ec.message();
 					LOG_ERR("Couldn't parse this Magnet URI: %s %s\n", urlc, errorMessage.c_str());
-					return "";
+					return ;
 				}
 				std::string filename = libtorrent::combine_path(tempDir, libtorrent::combine_path("resume", libtorrent::to_hex(tmp.info_hash.to_string()) + ".resume"));
 				LOG_INFO("load resume_data:%s", filename.c_str());
@@ -348,38 +341,28 @@ bool  DownloadSession::addTorrentFromUrl(std::string &url){
 					LOG_ERR("fail to load resume_data%s\n", ec.message().c_str());
 				}
 
-				result = true;
+				//result = true;
 			}
 
 			LOG_INFO("adding URL: %s\n", urlc);
 
 			p.userdata = (void*)strdup(urlc);
-			s->async_add_torrent(p);
-
-			//setTaskFromHandle(url, add_to_queued, th);
+			addTask(url, add_to_queued, s->add_torrent(p));
 		}
 	}
 	catch (...) {
 		LOG_ERR("Exception: failed to add torrent");
 
 	}
-	return result;
+	return ;
 }
-bool DownloadSession::addTorrentFromFile(std::string &torrentFile){
-	bool result = false;
-
+void DownloadSession::addTorrentFromFile(std::string &torrentFile){
+	libtorrent::torrent_handle th;
 	try{
-
-		int taskStatus = getTaskStatus(torrentFile);
-
-		if (taskStatus >0){ //如果存在
-			//reStart(url);
-			return true;
-		}
 
 		boost::intrusive_ptr<libtorrent::torrent_info> t;
 		libtorrent::error_code ec;
-		libtorrent::torrent_handle th;
+	
 		add_torrent_params p;
 
 		t = new libtorrent::torrent_info(torrentFile, ec);
@@ -390,7 +373,7 @@ bool DownloadSession::addTorrentFromFile(std::string &torrentFile){
 		th = s->find_torrent(t->info_hash());
 		if (th.is_valid()) {
 			LOG_INFO("Torrent is already in download list");
-			result = true;
+			return ;
 		}
 		else{
 			LOG_INFO("%s\n", t->name().c_str());
@@ -420,7 +403,9 @@ bool DownloadSession::addTorrentFromFile(std::string &torrentFile){
 			}
 			torrentParams.storage_mode = storageMode;
 			torrentParams.userdata = (void*)strdup(torrentFile.c_str());
-			s->async_add_torrent(torrentParams);
+
+			addTask(torrentFile, add_to_queued, s->add_torrent(torrentParams));
+
 			//copyfile
 			std::vector<char> in;
 			error_code ec;
@@ -430,14 +415,13 @@ bool DownloadSession::addTorrentFromFile(std::string &torrentFile){
 				saveFile(bakfile, in);
 			}
 			//setTaskFromHash(torrentFile, add_to_queued, libtorrent::to_hex(t->info_hash().to_string()));
-			result = true;
+			
 		}
-
 	}
 	catch (...) {
 		LOG_ERR("Exception: failed to add torrent");
 	}
-	return result;
+
 
 }
 void DownloadSession::readAlerts(){
@@ -494,7 +478,7 @@ void DownloadSession::handleAlert(libtorrent::alert* a){
 			break;
 		default:
 			std::string event_string;
-			print_alert(a, event_string);
+			//print_alert(a, event_string);
 
 		}
 
@@ -636,7 +620,7 @@ void DownloadSession::saveState()
 
 
 void DownloadSession::handleAddTorrentAlert(libtorrent::add_torrent_alert* p){
-	std::string filename;
+	/*std::string filename;
 	if (p->params.userdata){
 		filename = (char*)p->params.userdata;
 		free(p->params.userdata);
@@ -652,7 +636,7 @@ void DownloadSession::handleAddTorrentAlert(libtorrent::add_torrent_alert* p){
 			addTask(filename, add_to_queued, h);
 			//setTaskFromHandle(filename, add_to_queued, h);
 		}
-	}
+	}*/
 }
 void DownloadSession::handleMetadataReceivedAlert(libtorrent::metadata_received_alert* p) {
 	torrent_handle h = p->handle;
@@ -705,7 +689,7 @@ void DownloadSession::handleTorrentFinishedAlert(libtorrent::torrent_finished_al
 		std::string taskId = taskinfo->taskId;
 		LOG_INFO("download finish: %s", taskId.c_str());
 		if (taskId != ""){
-			setTask(taskId, finish_all, std::string(""));
+			setTask(taskId, finish_all, taskinfo->hash);
 		}
 	}
 }
@@ -726,8 +710,10 @@ void DownloadSession::addTask(std::string& taskId, int status, libtorrent::torre
 		TaskInfo* taskInfo = new TaskInfo();
 		taskInfo->taskId = taskId;
 		taskInfo->status = status;
-		taskInfo->handle = handle;
 		if (handle.is_valid()){
+			taskInfo->handle = handle;
+		}
+		if(handle.status().has_metadata){
 			taskInfo->hash = libtorrent::to_hex(handle.info_hash().to_string());
 		}
 		tasks.insert(std::pair<std::string, TaskInfo*>(taskId, taskInfo));
@@ -1030,7 +1016,7 @@ bool DownloadSession::setPiecePriorities(std::string& taskId, std::vector<int> p
 	try {
 		libtorrent::torrent_handle pTorrent = getTorrentHandleFromTaskId(taskId);
 		if (pTorrent.is_valid()){
-			if (pTorrent.has_metadata()) {
+			if (pTorrent.status().has_metadata) {
 				libtorrent::torrent_info const& info = pTorrent.get_torrent_info();
 				int pieces_num = info.num_pieces();
 				int arr_size = priorities.size();

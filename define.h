@@ -25,6 +25,8 @@
 #include "libtorrent/create_torrent.hpp"
 
 #include "boost/filesystem.hpp"
+#include <boost/thread/thread.hpp>
+#include <boost/thread/mutex.hpp>
 
 #include "download.hpp"
 

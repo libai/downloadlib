@@ -5,6 +5,8 @@
 #include "define.h" //全局定义
 
 
+using namespace libtorrent;
+
 int main(int argc, char* argv[])
 {
 	//启动下载进程
@@ -22,24 +24,24 @@ int main(int argc, char* argv[])
 	//添加下载任务
 	std::string torrentPath("E:\\c\\libtorrent-rasterbar-1.0.4\\torrent-test\\3333.torrent");
 
-	bool result;
+	libtorrent::torrent_handle result;
 	std::string info = "";
 	std::string files = "";
-	result = downloadSession->addTorrentFromFile(torrentPath);
+	downloadSession->addTorrentFromFile(torrentPath);
 
-	std::string httpUrl = "https://yts.to/torrent/download/160D1170AD41E98216D055E746579B79A5AF3A33.torrent";
+	std::string httpUrl = "https://yts.to/torrent/download/D42234622CE77E59A9C4EEB41DCD2C8E6B59AC62.torrent";
 	int status = 0;
 
 
-	result = downloadSession->addTorrentFromUrl(httpUrl);
+	downloadSession->addTorrentFromUrl(httpUrl);
 
 	std::string magnet = "magnet:?xt=urn:btih:DE91C4A7F183C4164BCD4549C933FB2A5F720E7A&dn=%E5%93%A5%E6%96%AF%E6%8B%89.Godzilla.2014.TC720P.X264.AAC.english.CHS.Mp4Ba";
 
-	result = downloadSession->addTorrentFromUrl(magnet);
+	downloadSession->addTorrentFromUrl(magnet);
 
 	int j = 0;
 	//等待任务准备好
-	while ((status == 11 || status<3) && j<10){
+	while ((status == 11 || status<3) && j<100){
 
 		status = downloadSession->getTaskStatus(httpUrl);
 		LOG_INFO("status:%d", status);

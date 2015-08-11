@@ -1,9 +1,9 @@
 #include "define.h"
 using namespace libtorrent;
-//foolish²å¼ş
+//foolishæ’ä»¶
 struct foolish_plugin : plugin
 {
-	//ĞÂ¼ÓÈë
+	//æ–°åŠ å…¥
 	boost::shared_ptr<torrent_plugin> new_torrent(torrent* torrentInfo, void* userdata){
 		//TaskManage* taskManage = TaskManage::instance();
 		//char* filename = (char*)userdata;
@@ -14,7 +14,7 @@ struct foolish_plugin : plugin
 		return boost::shared_ptr<torrent_plugin>();
 	}
 	void added(aux::session_impl* session){
-		LOG_INFO("¼ÓÔØÈÎÎñÁĞ±í");
+		//LOG_INFO("åŠ è½½ä»»åŠ¡åˆ—è¡¨");
 		//TaskManage::instance()->loadTasks();
 	}
 	virtual void on_alert(alert const* a){
